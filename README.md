@@ -12,6 +12,20 @@ npm start            # 의존성 없음, Node 20+
 
 브라우저는 업스트림을 직접 부르지 않는다. 업스트림이 CORS를 허용하지 않기 때문에 `server.js`가 PortWise 공개 엔드포인트를 서버에서 호출하고, 결과를 캐시해 `/api/*`로 내려준다. 로그인이 필요 없는 엔드포인트만 쓴다.
 
+### GitHub Pages (정적 스냅샷)
+
+공개 페이지: https://minkyu-k530.github.io/sk-portwise/
+
+Pages는 서버 코드를 실행할 수 없다. 그래서 `.github/workflows/pages.yml`이 10분마다(그리고 `main`에 push할 때마다) `scripts/build-static.js`를 실행한다. 이 스크립트는 `/api/*` 응답을 `data/*.json`으로 저장하고, `public/`과 함께 Pages에 배포한다. 화면은 `index.html`에 들어간 `<meta name="skpw-mode" content="static">` 태그를 보고 `data/` 아래 파일을 읽는다.
+
+- 데이터는 몇 분씩 늦다. GitHub의 cron 실행은 자주 몇 분 밀리고, 헤더에 "(스냅샷)"과 기준 시각을 표시한다.
+- 선박 상세는 모든 선박을 저장한다. 항적은 응답이 커서 SK 시설에 접안한 선박만 저장하고, 나머지 선박은 카드의 "항해경로 표시하기" 버튼이 비활성화된다.
+- 혼잡 예보(오늘·내일 × 23시간)는 Actions 캐시에 두고 KST 06시 전/후 단위로만 새로 받는다.
+- 처음 한 번은 저장소 관리자가 Settings → Pages → Source를 **GitHub Actions**로 설정해야 한다.
+- 공개 저장소에서 60일 동안 활동이 없으면 GitHub이 예약 실행을 자동으로 멈춘다. 그때는 Actions 탭에서 다시 켜면 된다.
+
+로컬에서 정적 빌드를 확인하려면 `node scripts/build-static.js dist`를 실행한 뒤 `dist/`를 아무 정적 서버로 연다.
+
 ## 화면
 
 | 메뉴 | 내용 |
@@ -51,7 +65,7 @@ npm start            # 의존성 없음, Node 20+
 - 표시 대상은 PortWise `vsslTp`가 탱커 계열이거나 `GAS_CARRIER`·`LNG_CARRIER`인 선박이다. 선종이 비어 있으면 AIS 선종코드 80–89(탱커)도 포함한다.
 - 선종이 미분류(`NOT_AVAILABLE`, `OTHER`)여도 SK 시설에 접안해 있으면 `미분류(SK 시설 내)`로 표시한다.
 - 어느 SK 시설인지는 PortWise 위치시설명(예: `SK2부두 4선석`)과 PORT-MIS 시설명·코드(예: `SK1부두 12`, `MDU-08`)에서 정한다. 위치시설명이 없고 계류 중인 선박은 시설 좌표 근처(부두 250 m, 부이 600 m)에 있으면 `근접 추정`으로 배정한다.
-- 목적지가 시운전(S/T, SEA TRIAL)이나 계선(LAY UP)인 조선소 신조선은 기본으로 숨긴다. 선박필터에서 다시 켤 수 있다.
+- 목적지가 시운전(S/T, SEA TRIAL)이나 계선(LAY UP)인 조선소 신조선에는 `shipyard: true`가 붙는다. 화면에서는 기본으로 숨기고, 선박필터에서 다시 켤 수 있다.
 
 ## 알려진 한계
 

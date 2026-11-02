@@ -1,0 +1,55 @@
+# 10분마다 PortWise 데이터를 정적 JSON 스냅샷으로 만들어 GitHub Pages 에 배포한다.
+# 저장소 Settings → Pages → Source 를 "GitHub Actions" 로 설정해야 deploy 가 성공한다.
+name: Pages snapshot
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 혼잡 예보는 하루 1회(04~05시 KST) 갱신 → KST 날짜 + 06시 전/후 단위로 캐시해 업스트림 호출을 줄인다
+      - id: kst
+        run: |
+          d=$(TZ=Asia/Seoul date +%Y%m%d); h=$(TZ=Asia/Seoul date +%H)
+          if [ "$h" -lt 6 ]; then p=pre; else p=post; fi
+          echo "key=congestion-$d-$p" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: .cache/congestion
+          key: ${{ steps.kst.outputs.key }}
+      - run: node scripts/build-static.js dist
+        env:
+          CONGESTION_CACHE: .cache/congestion
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

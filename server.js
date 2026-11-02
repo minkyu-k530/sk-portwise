@@ -43,7 +43,7 @@ const MMSI_RE = /^\d{9}$/;
 
 /** @type {Array<[RegExp, (m: RegExpMatchArray, url: URL) => Promise<unknown>]>} */
 const ROUTES = [
-  [/^\/api\/vessels$/, (_m, url) => getVessels({ includeShipyard: url.searchParams.get('shipyard') === '1' })],
+  [/^\/api\/vessels$/, () => getVessels()],
   [/^\/api\/vessels\/([^/]+)\/detail$/, (m, url) => {
     if (!MMSI_RE.test(m[1])) throw Object.assign(new Error('invalid mmsi'), { status: 400 });
     return getVesselDetail(m[1], url.searchParams.get('callSign'));

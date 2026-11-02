@@ -8,8 +8,20 @@ const esc = (v) => (v == null ? '' : String(v).replace(/[&<>"']/g, (c) => ESC[c]
 const dash = (v, unit = '') => (v == null || v === '' ? '-' : `${esc(v)}${unit}`);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// 서버 모드: Node 중계 서버의 api/*. 정적 모드(GitHub Pages): Actions 가 주기적으로 만든 data/*.json 스냅샷.
+const STATIC = document.querySelector('meta[name="skpw-mode"]')?.content === 'static';
+function dataUrl(path) {
+  if (!STATIC) return `api${path}`;
+  const [p, q] = path.split('?');
+  if (p === '/congestion') {
+    const qs = new URLSearchParams(q);
+    return `data/congestion/${qs.get('date')}-${qs.get('time')}.json`;
+  }
+  return `data${p}.json`;
+}
 async function api(path) {
-  const res = await fetch(`/api${path}`);
+  const res = await fetch(dataUrl(path), { cache: 'no-cache' });
+  if (STATIC && res.status === 404) throw new Error('스냅샷에 없는 자료입니다');
   let body;
   try {
     body = await res.json();
@@ -57,7 +69,7 @@ const REFRESH_MS = 60_000;
 const state = {
   vessels: [],
   facilities: [],
-  shipyardHidden: 0,
+  routeMmsi: null, // 정적 모드: 스냅샷에 항적이 있는 MMSI 집합
   fetchedAt: null,
   stale: false,
   filter: {
@@ -210,9 +222,16 @@ function destPoint(lat, lng, bearingDeg, meters) {
 
 function visibleVessels() {
   const f = state.filter;
-  return state.vessels.filter(
+  return shipPool().filter(
     (v) => f.dom.has(v.domestic) && f.types.has(v.type) && (!f.skOnly || v.skFacility),
   );
+}
+/** 조선소 시운전·계선 선박 숨김만 적용한 목록 (검색·목록·필터 집계 기준) */
+function shipPool() {
+  return state.filter.shipyard ? state.vessels : state.vessels.filter((v) => !v.shipyard);
+}
+function routeAvailable(v) {
+  return Boolean(v.mmsi) && (!state.routeMmsi || state.routeMmsi.has(v.mmsi));
 }
 
 function hoverHtml(v) {
@@ -363,7 +382,7 @@ function renderCard(v, detail) {
     <div class="hd" style="background:linear-gradient(180deg,#eaf3ff,#cfe3fb)">${SHIP_SIDE(color)}
       <button class="close" aria-label="닫기" data-act="close">×</button></div>
     <div class="actions">
-      <button data-act="route" class="${state.routeFor === v.mmsi ? 'on' : ''}" ${v.mmsi ? '' : 'disabled'}>항해경로 표시하기</button>
+      <button data-act="route" class="${state.routeFor === v.mmsi ? 'on' : ''}" ${routeAvailable(v) ? '' : `disabled title="${STATIC ? '스냅샷에는 SK 시설 접안 선박의 항적만 포함됩니다' : 'MMSI 없음'}"`}>항해경로 표시하기</button>
       <button data-act="center">위치로 이동</button>
     </div>
     <table>
@@ -441,6 +460,7 @@ async function selectVessel(id, { fly }) {
     state.filter.types.add(v.type);
     state.filter.dom.add(v.domestic);
     state.filter.skOnly = false;
+    if (v.shipyard) state.filter.shipyard = true;
     syncFilterInputs();
   }
   renderVessels();
@@ -484,7 +504,7 @@ function searchItems(q) {
   const fac = state.facilities
     .filter((f) => `${f.name} ${f.label}`.toLowerCase().replace(/\s/g, '').includes(s.replace(/\s/g, '')))
     .map((f) => ({ kind: 'facility', id: f.id, title: f.label, sub: `${f.kind === 'buoy' ? '부이' : '부두'} · 접안 ${f.alongside.length}` }));
-  const ves = state.vessels
+  const ves = shipPool()
     .filter((v) => [v.name, v.nameKr, v.mmsi, v.callSign, v.imo].some((x) => x && String(x).toLowerCase().includes(s)))
     .slice(0, 30)
     .map((v) => ({ kind: 'vessel', id: v.id, title: v.name, sub: `${v.typeKr}${v.skFacility ? ` · ${v.skFacility}` : ''}` }));
@@ -586,14 +606,16 @@ function syncFilterInputs() {
 }
 function renderFilterPanel() {
   const counts = {};
-  for (const v of state.vessels) counts[v.type] = (counts[v.type] ?? 0) + 1;
+  const pool = shipPool();
+  for (const v of pool) counts[v.type] = (counts[v.type] ?? 0) + 1;
   $('#typeFilters').innerHTML =
-    `<label class="chk"><span><input type="checkbox" data-type="ALL"> 전체</span><span class="n">${state.vessels.length}</span></label>` +
+    `<label class="chk"><span><input type="checkbox" data-type="ALL"> 전체</span><span class="n">${pool.length}</span></label>` +
     TYPES.map(([key, en, kr]) => {
       const cargo = state.vessels.find((v) => v.type === key)?.cargo ?? (key.includes('CHEM') ? 'chemical' : key.includes('GAS') || key.includes('LNG') ? 'gas' : key.startsWith('UNCL') ? 'unknown' : 'oil');
       return `<label class="chk"><span><input type="checkbox" data-type="${key}"><i class="swatch" style="background:${CARGO[cargo].color}"></i>${en} <em>${kr}</em></span><span class="n">${counts[key] ?? 0}</span></label>`;
     }).join('');
-  $('#shipyardCount').textContent = state.filter.shipyard ? '' : `(${state.shipyardHidden}척 숨김)`;
+  const hidden = state.vessels.filter((v) => v.shipyard).length;
+  $('#shipyardCount').textContent = state.filter.shipyard ? '' : `(${hidden}척 숨김)`;
   syncFilterInputs();
 }
 $('#panel-filter').addEventListener('change', (e) => {
@@ -610,8 +632,7 @@ $('#panel-filter').addEventListener('change', (e) => {
     state.filter.skOnly = t.checked;
   } else if (t.id === 'fShipyard') {
     state.filter.shipyard = t.checked;
-    refresh();
-    return;
+    renderFilterPanel();
   }
   syncFilterInputs();
   renderVessels();
@@ -836,21 +857,23 @@ async function renderFogPanel() {
 }
 
 // 혼잡도
-function ymd(d) {
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+/** KST 기준 YYYYMMDD (offsetDays 일 뒤) — 혼잡 예보·스냅샷 파일명이 KST 날짜 기준 */
+function ymdKst(offsetDays = 0) {
+  return new Date(Date.now() + offsetDays * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }).replaceAll('-', '');
 }
 function renderCongestionPanel() {
   const el = $('#panel-congestion');
   if (el.dataset.ready) return;
-  const today = new Date();
-  const tomorrow = new Date(Date.now() + 86_400_000);
-  const nextHour = clamp(today.getHours() + 1, 1, 23);
+  const kstHour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul', hour: 'numeric', hourCycle: 'h23' }));
+  const today = ymdKst(0);
+  const tomorrow = ymdKst(1);
+  const nextHour = clamp(kstHour + 1, 1, 23);
   const hours = Array.from({ length: 23 }, (_, i) => i + 1)
     .map((h) => `<option value="${String(h).padStart(2, '0')}00" ${h === nextHour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`)
     .join('');
   el.innerHTML = `<h3>해양교통 혼잡 예보 ${srcLine([['격자', '4단계(1분 30초) · 약 2.3 × 2.8km'], ['업데이트', '매일 04~05시']])}</h3>
     <div class="congestion-form">
-      <label>날짜 <select id="cgDate"><option value="${ymd(today)}">${ymd(today)}</option><option value="${ymd(tomorrow)}">${ymd(tomorrow)}</option></select></label>
+      <label>날짜 <select id="cgDate"><option value="${today}">${today}</option><option value="${tomorrow}">${tomorrow}</option></select></label>
       <label>시간대 <select id="cgTime">${hours}</select></label>
       <button id="cgRun">혼잡도 조회</button><button id="cgClear" style="background:#556275">지우기</button>
     </div>
@@ -1026,7 +1049,7 @@ function renderVesselTable() {
 function renderVesselRows() {
   const q = tableState.q.trim().toLowerCase();
   const col = COLS.find((c) => c[0] === tableState.sort) ?? COLS[0];
-  const rows = state.vessels
+  const rows = shipPool()
     .filter((v) => (!tableState.cargo || v.cargo === tableState.cargo) && (!tableState.skOnly || v.skFacility) && (!tableState.toUlsan || v.toUlsan))
     .filter((v) => !q || [v.name, v.nameKr, v.mmsi, v.callSign].some((x) => x && String(x).toLowerCase().includes(q)))
     .sort((a, b) => {
@@ -1079,16 +1102,16 @@ async function refresh() {
   refreshing = true;
   $('#btnRefresh').classList.add('spin');
   try {
-    const [vr, fr] = await Promise.all([api(`/vessels${state.filter.shipyard ? '?shipyard=1' : ''}`), api('/facilities')]);
+    const [vr, fr] = await Promise.all([api('/vessels'), api('/facilities')]);
     state.vessels = vr.vessels;
-    state.shipyardHidden = vr.shipyardHidden;
+    state.routeMmsi = vr.routeMmsi ? new Set(vr.routeMmsi) : null;
     state.fetchedAt = vr.fetchedAt;
     state.stale = vr.stale || fr.stale;
     state.facilities = fr.facilities;
     renderFacilities();
     renderVessels();
-    $('#searchCount').textContent = `${state.vessels.length}척`;
-    $('#updatedAt').textContent = `AIS ${fmtTime(Date.parse(vr.fetchedAt)).slice(11)} 기준${state.stale ? ' (지연)' : ''}`;
+    $('#searchCount').textContent = `${shipPool().length}척`;
+    $('#updatedAt').textContent = `AIS ${fmtTime(Date.parse(vr.fetchedAt)).slice(11)} 기준${STATIC ? ' (스냅샷)' : ''}${state.stale ? ' (지연)' : ''}`;
     $('#updatedAt').style.color = state.stale ? '#d9480f' : '';
     if (state.selected) {
       const v = state.vessels.find((x) => x.id === state.selected);

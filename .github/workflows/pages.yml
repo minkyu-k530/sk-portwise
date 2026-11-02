@@ -1,12 +1,10 @@
-# 10분마다 PortWise 데이터를 정적 JSON 스냅샷으로 만들어 GitHub Pages 에 배포한다.
+# public/ 을 그대로 GitHub Pages 에 배포한다(빌드·외부 데이터 수집 없음).
 # 저장소 Settings → Pages → Source 를 "GitHub Actions" 로 설정해야 deploy 가 성공한다.
-name: Pages snapshot
+name: Pages
 
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -27,22 +25,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      # 혼잡 예보는 하루 1회(04~05시 KST) 갱신 → KST 날짜 + 06시 전/후 단위로 캐시해 업스트림 호출을 줄인다
-      - id: kst
-        run: |
-          d=$(TZ=Asia/Seoul date +%Y%m%d); h=$(TZ=Asia/Seoul date +%H)
-          if [ "$h" -lt 6 ]; then p=pre; else p=post; fi
-          echo "key=congestion-$d-$p" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        with:
-          path: .cache/congestion
-          key: ${{ steps.kst.outputs.key }}
-      - run: node scripts/build-static.js dist
-        env:
-          CONGESTION_CACHE: .cache/congestion
+      # 목업 시나리오 검증: 좌초·충돌·정체가 있으면 배포하지 않는다
+      - run: node scripts/check-scenario.js 48
+      - run: touch public/.nojekyll
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: dist
+          path: public
 
   deploy:
     needs: build

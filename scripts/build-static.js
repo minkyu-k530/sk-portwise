@@ -112,7 +112,6 @@ async function main() {
   await writeJson('seafog.json', seafog);
   await writeJson('shipping.json', shipping);
   const congestion = await buildCongestion();
-  await writeFile(join(OUT, '.nojekyll'), '');
 
   console.log(
     JSON.stringify({

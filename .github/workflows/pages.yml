@@ -23,24 +23,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
       # 혼잡 예보는 하루 1회(04~05시 KST) 갱신 → KST 날짜 + 06시 전/후 단위로 캐시해 업스트림 호출을 줄인다
       - id: kst
         run: |
           d=$(TZ=Asia/Seoul date +%Y%m%d); h=$(TZ=Asia/Seoul date +%H)
           if [ "$h" -lt 6 ]; then p=pre; else p=post; fi
           echo "key=congestion-$d-$p" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .cache/congestion
           key: ${{ steps.kst.outputs.key }}
       - run: node scripts/build-static.js dist
         env:
           CONGESTION_CACHE: .cache/congestion
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -52,4 +52,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

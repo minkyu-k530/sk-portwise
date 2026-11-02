@@ -292,3 +292,30 @@ export const INITIAL = [
   { ship: 'v20', state: 'inbound', at: P(2600, -7600), headingDeg: 335, speedKn: 11 },
   { ship: 'v21', state: 'away', arriveInH: 1.5, entry: 'SEA_S' },
 ];
+
+// ── 2D 지도(PortWise 형식 화면)용 보조 목업 ─────────────────────────────────
+
+/** 시설 대표 좌표(지도 마커). 부이 2기는 공개 좌표가 없어 근사값 */
+export const FACILITY_POS = {
+  SK1: { lat: 35.5027, lng: 129.3632 },
+  SK2: { lat: 35.4986, lng: 129.3658 },
+  SK3: { lat: 35.4946, lng: 129.3829 },
+  SK4: { lat: 35.4927, lng: 129.3842 },
+  SK5: { lat: 35.4892, lng: 129.3863 },
+  SK6: { lat: 35.4855, lng: 129.3907 },
+  SK7: { lat: 35.4824, lng: 129.3907 },
+  SK8: { lat: 35.4791, lng: 129.3906 },
+  SKB2: { lat: 35.4483, lng: 129.4236, approx: true },
+  SKB3: { lat: 35.44, lng: 129.43, approx: true },
+};
+
+/** 가상 항차: [직전 항구, 다음 항구] */
+export const VOYAGES = {
+  v01: ['RAS TANURA', 'RAS TANURA'], v02: ['RUWAIS', 'FUJAIRAH'], v03: ['BASRAH', 'SINGAPORE'],
+  v04: ['NOVOROSSIYSK', 'SINGAPORE'], v05: ['KOZMINO', 'KOZMINO'], v06: ['FUJAIRAH', 'SINGAPORE'],
+  v07: ['YEOSU', 'SINGAPORE'], v08: ['SINGAPORE', 'KAOHSIUNG'], v09: ['HOUSTON', 'NINGBO'],
+  v10: ['DAESAN', 'TOKYO'], v11: ['YEOSU', 'SYDNEY'], v12: ['DAESAN', 'ZHANGJIAGANG'],
+  v13: ['BUSAN', 'BUSAN'], v14: ['YEOSU', 'SHANGHAI'], v15: ['ONSAN', 'DALIAN'],
+  v16: ['MOKPO', 'POHANG'], v17: ['INCHEON', 'GWANGYANG'], v18: ['BUSAN', 'POHANG'],
+  v19: ['PYEONGTAEK', 'PYEONGTAEK'], v20: ['YEOSU', 'INCHEON'], v21: ['BUSAN', 'MOKPO'],
+};

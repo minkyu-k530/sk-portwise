@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SK 울산 액체부두 · 3D 선박 운항 시뮬레이션</title>
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/3d.css?v=__BUILD__">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="viewport" aria-label="3D 항만 뷰"></div>
+
+<header class="topbar">
+  <a class="brand" href="index.html" title="2D 지도로"><img src="img/logo.svg" alt=""><div><b>SK 울산 액체부두</b><small>3D 선박 운항 시뮬레이션 · 가상 데이터</small></div></a>
+  <a class="to2d" href="index.html">← 2D 지도</a>
+  <div class="clock"><span id="clockDate">-</span><b id="clockTime">--:--:--</b><span class="kst">KST</span><span class="sky" id="sky">-</span></div>
+  <div class="speed" role="group" aria-label="시뮬레이션 배속">
+    <button data-speed="0" title="일시정지 (Space)">❚❚</button>
+    <button data-speed="1" title="실시간 (1)">1×</button>
+    <button data-speed="10" title="10배 (2)">10×</button>
+    <button data-speed="60" title="60배 (3)">60×</button>
+    <button data-speed="300" title="300배 (4)">300×</button>
+    <button data-speed="1200" title="1200배 (5)">1200×</button>
+  </div>
+  <div class="env"><span id="wind">-</span><span id="counts" class="counts"></span></div>
+</header>
+
+<aside class="panel">
+  <nav class="tabs">
+    <button data-tab="ships" class="on">선박</button>
+    <button data-tab="berths">부두 현황</button>
+    <button data-tab="log">운항 기록</button>
+  </nav>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<section class="card hidden" id="card" aria-live="polite"></section>
+
+<div class="viewbar">
+  <button id="btnHome" title="전체 보기 (H)">전체 보기</button>
+  <button id="btnFollow" disabled title="선택 선박 따라가기 (F · 더블클릭)">따라가기</button>
+  <button id="btnBridge" disabled title="선택 선박 브리지 뷰 (B)">브리지 뷰</button>
+  <button id="btnLabels" class="on" title="선명 표시">선명</button>
+  <button id="btnChart" title="항로·정박지 표시">해도</button>
+  <span id="fps" class="fps"></span>
+</div>
+<div class="modehint hidden" id="modeHint"></div>
+
+<canvas id="minimap" width="240" height="240" aria-label="미니맵 (누르면 이동)"></canvas>
+
+<div class="loading" id="loading"><div class="spinner"></div><p>불러오는 중…</p></div>
+
+<footer class="disclaimer">선박·선사·화물·일정은 모두 가상(목업) 데이터이며 실제 운항과 무관합니다 · 해안선 © OpenStreetMap contributors (ODbL)</footer>
+
+<script type="module" src="js/main.js?v=__BUILD__"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { KST_OFFSET_H, SCENARIO_START } from './data.js';
+import { advance, scenarioClock } from './clock.js';
 import { FleetView } from './fleet.js';
 import { World, toWorld } from './scene.js';
 import { Simulation } from './sim.js';
@@ -185,10 +185,12 @@ async function main() {
   const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 1.5, 160000);
   camera.position.set(1500, 1350, 1200);
 
-  setLoading('시뮬레이션 준비 중…');
+  // 2D 지도와 같은 시나리오 시계: 매일 KST 07:30 시작 상태에서 지금 시각까지 진행
+  setLoading('시뮬레이션을 현재 시각까지 진행하는 중…');
+  await new Promise((r) => requestAnimationFrame(() => r()));
   const sim = new Simulation();
-  const kstNow = new Date(Date.now() + KST_OFFSET_H * 3600_000);
-  const startUtc = Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate(), SCENARIO_START.hour - KST_OFFSET_H, SCENARIO_START.minute);
+  const { startUtc, elapsed } = scenarioClock();
+  advance(sim, elapsed);
 
   setLoading('항만 지형·시설 만드는 중…');
   const world = new World({ renderer, scene, camera, coast, sim });
@@ -198,6 +200,13 @@ async function main() {
   cam.controls.update();
   const ui = new UI({ sim, fleet, world, startUtc, cam });
   fleet.onLabelClick = (v) => ui.select(v);
+  // 2D 지도의 "3D로 보기": ?vessel=<id> 로 들어오면 그 선박을 고르고 그쪽으로 이동
+  const wanted = new URLSearchParams(location.search).get('vessel');
+  const target = wanted && (sim.ships.find((s) => s.id === wanted) ?? sim.tugs.find((t) => t.id === wanted));
+  if (target) {
+    ui.select(target);
+    if (target.phase !== 'away') cam.flyToVessel(target);
+  }
 
   // 클릭으로 선박 선택(드래그는 무시)
   const ray = new THREE.Raycaster();
@@ -226,8 +235,8 @@ async function main() {
   });
 
   // 첫 화면: 시뮬레이션 시간을 맞춘 뒤 셰이더를 미리 컴파일
-  world.update(startUtc, 0, cam.controls.target);
-  fleet.update(0, 0, camera, world.daylight);
+  world.update(startUtc + sim.t * 1000, sim.t, cam.controls.target);
+  fleet.update(sim.t, 0, camera, world.daylight);
   renderer.compile(scene, camera);
   loading.classList.add('done');
   setTimeout(() => loading.remove(), 600);

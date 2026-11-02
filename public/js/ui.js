@@ -25,7 +25,7 @@ export class UI {
     this.world = world;
     this.startUtc = startUtc;
     this.cam = cam;
-    this.speed = 10;
+    this.speed = 1;
     this.paused = false;
     this.selected = null;
     this.tab = 'ships';

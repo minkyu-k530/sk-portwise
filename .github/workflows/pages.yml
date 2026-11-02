@@ -28,6 +28,12 @@ jobs:
       # 목업 시나리오 검증: 좌초·충돌·정체가 있으면 배포하지 않는다
       - run: node scripts/check-scenario.js 48
       - run: touch public/.nojekyll
+      # 배포마다 CSS·JS 주소를 바꿔 브라우저가 이전 버전 파일을 섞어 쓰지 않게 한다
+      - name: cache-bust
+        run: |
+          v="${GITHUB_SHA::7}"
+          sed -i "s/__BUILD__/$v/g" public/*.html
+          sed -i -E "s#(from '\./[a-z0-9-]+\.js)'#\1?v=$v'#g" public/js/*.js
       - uses: actions/upload-pages-artifact@v5
         with:
           path: public

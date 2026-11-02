@@ -1,0 +1,13 @@
+{
+  "name": "sk-portwise",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SK 울산 액체부두(SK1~8부두, SK2·3부이) 전용 선박운항 정보공유 화면 — UPA PortWise 구조 재현",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
